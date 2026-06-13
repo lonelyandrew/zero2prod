@@ -1,3 +1,5 @@
+use config::{Config, ConfigError, File, FileFormat};
+
 #[derive(serde::Deserialize)]
 pub struct Settings {
     pub database: DatabaseSettings,
@@ -13,14 +15,11 @@ pub struct DatabaseSettings {
     pub database_name: String,
 }
 
-pub fn get_configuration() -> Result<Settings, config::ConfigError> {
+pub fn get_configuration() -> Result<Settings, ConfigError> {
     // Initialize our configuration reader
-    let settings = config::Config::builder()
+    let settings = Config::builder()
         // Add configuration values from a file named `configuration.yaml`.
-        .add_source(config::File::new(
-            "configuration.yaml",
-            config::FileFormat::Yaml,
-        ))
+        .add_source(File::new("configuration.yaml", FileFormat::Yaml))
         .build()?;
     // Try to convert the configuration values it read into
     // our Settings type
