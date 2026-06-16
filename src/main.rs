@@ -1,6 +1,10 @@
 use sqlx::PgPool;
 use std::net::TcpListener;
-use env_logger::Env;
+use tracing::subscriber::set_global_default;
+use tracing_bunyan_formatter::{BunyanFormattingLayer, JsonStorageLayer};
+use tracing_log::LogTracer;
+use tracing_subscriber::layer::SubscriberExt;
+use tracing_subscriber::{EnvFilter, Registry};
 use zero2prod::configuration::get_configuration;
 use zero2prod::startup::run;
 
@@ -14,6 +18,14 @@ async fn main() -> Result<(), std::io::Error> {
     // We have removed the hard-coded `8000` - it's now coming from our settings!
     let address = format!("127.0.0.1:{}", configuration.application_port);
     let listener = TcpListener::bind(address)?;
-    env_logger::Builder::from_env(Env::default().default_filter_or("info")).init();
+    LogTracer::init().expect("Failed to set up log tracer.");
+
+    let env_filter = EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("info"));
+    let formatting_layer = BunyanFormattingLayer::new("zero2prod".into(), std::io::stdout);
+    let subscriber = Registry::default()
+        .with(env_filter)
+        .with(JsonStorageLayer)
+        .with(formatting_layer);
+    set_global_default(subscriber).expect("Failed to set subscriber");
     run(listener, connection_pool)?.await
 }
