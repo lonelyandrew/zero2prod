@@ -1,3 +1,4 @@
+use secrecy::{ExposeSecret, SecretString};
 use sqlx::{AssertSqlSafe, Connection, PgConnection, PgPool};
 use std::net::TcpListener;
 use std::sync::LazyLock;
@@ -31,7 +32,7 @@ async fn health_check_works() {
 
     // Act
     let response = client
-        .get(&format!("{}/health_check", &app.address))
+        .get(format!("{}/health_check", &app.address))
         .send()
         .await
         .expect("Failed to execute request.");
@@ -47,7 +48,7 @@ async fn subscribe_returns_a_200_for_valid_form_data() {
     let app = spawn_app().await;
     let configuration = get_configuration().expect("Failed to read configuration");
     let connection_string = configuration.database.connection_string();
-    let mut connection = PgConnection::connect(&connection_string)
+    let mut connection = PgConnection::connect(connection_string.expose_secret())
         .await
         .expect("Failed to connect to Postgres.");
     let client = reqwest::Client::new();
@@ -55,7 +56,7 @@ async fn subscribe_returns_a_200_for_valid_form_data() {
     // Act
     let body = "name=le%20guin&email=ursula_le_guin%40gmail.com";
     let response = client
-        .post(&format!("{}/subscriptions", &app.address))
+        .post(format!("{}/subscriptions", &app.address))
         .header("Content-Type", "application/x-www-form-urlencoded")
         .body(body)
         .send()
@@ -88,7 +89,7 @@ async fn subscribe_returns_a_400_when_data_is_missing() {
     for (invalid_body, error_message) in test_cases {
         // Act
         let response = client
-            .post(&format!("{}/subscriptions", &app.address))
+            .post(format!("{}/subscriptions", &app.address))
             .header("Content-Type", "application/x-www-form-urlencoded")
             .body(invalid_body)
             .send()
@@ -110,12 +111,13 @@ pub async fn configure_database(config: &DatabaseSettings) -> PgPool {
     let maintenance_settings = DatabaseSettings {
         database_name: "postgres".to_string(),
         username: "postgres".to_string(),
-        password: "password".to_string(),
+        password: SecretString::from("password"),
         ..config.clone()
     };
-    let mut connection = PgConnection::connect(&maintenance_settings.connection_string())
-        .await
-        .expect("Failed to connect to Postgres");
+    let mut connection =
+        PgConnection::connect(maintenance_settings.connection_string().expose_secret())
+            .await
+            .expect("Failed to connect to Postgres");
 
     let query = format!(r#"CREATE DATABASE "{}";"#, config.database_name);
     sqlx::query(AssertSqlSafe(query.as_str()))
@@ -124,7 +126,7 @@ pub async fn configure_database(config: &DatabaseSettings) -> PgPool {
         .expect("Failed to create database.");
 
     // Migrate database
-    let connection_pool = PgPool::connect(&config.connection_string())
+    let connection_pool = PgPool::connect(config.connection_string().expose_secret())
         .await
         .expect("Failed to connect to Postgres.");
     sqlx::migrate!("./migrations")
