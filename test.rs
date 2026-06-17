@@ -1,14 +1,16 @@
-/// Wrapper type for values that contains secrets, which attempts to limit
-/// accidental exposure and ensure secrets are wiped from memory when dropped.
-/// (e.g. passwords, cryptographic keys, access tokens or other credentials)
-///
-/// Access to the secret inner value occurs through the [...]
-/// `expose_secret()` method [...]
+//! src/routes/subscriptions.rs
+// [...]
 
-pub struct Secret<S>
-where
-    S: Zeroize,
-{
-    /// Inner secret value
-    inner_secret: S,
+#[tracing::instrument(
+    name = "Adding a new subscriber",
+    skip(form, pool),
+    fields(
+        subscriber_email = %form.email,
+        subscriber_name = %form.name
+    )
+)]
+pub async fn subscribe(form: web::Form<FormData>, pool: web::Data<PgPool>) -> HttpResponse {
+    // [...]
 }
+
+// [...]
