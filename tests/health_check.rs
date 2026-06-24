@@ -1,9 +1,9 @@
-use secrecy::{ExposeSecret, SecretString};
+use secrecy::SecretString;
 use sqlx::{AssertSqlSafe, Connection, PgConnection, PgPool};
 use std::net::TcpListener;
 use std::sync::LazyLock;
 use uuid::Uuid;
-use zero2prod::configuration::{DatabaseSettings, get_configuration};
+use zero2prod::configuration::{get_configuration, DatabaseSettings};
 use zero2prod::startup::run;
 use zero2prod::telemetry::{get_subscriber, init_subscriber};
 
@@ -47,8 +47,8 @@ async fn subscribe_returns_a_200_for_valid_form_data() {
     // Arrange
     let app = spawn_app().await;
     let configuration = get_configuration().expect("Failed to read configuration");
-    let connection_string = configuration.database.connection_string();
-    let mut connection = PgConnection::connect(connection_string.expose_secret())
+    let connection_options = configuration.database.connect_options();
+    let mut connection = PgConnection::connect_with(&connection_options)
         .await
         .expect("Failed to connect to Postgres.");
     let client = reqwest::Client::new();
@@ -114,10 +114,9 @@ pub async fn configure_database(config: &DatabaseSettings) -> PgPool {
         password: SecretString::from("password"),
         ..config.clone()
     };
-    let mut connection =
-        PgConnection::connect(maintenance_settings.connection_string().expose_secret())
-            .await
-            .expect("Failed to connect to Postgres");
+    let mut connection = PgConnection::connect_with(&maintenance_settings.connect_options())
+        .await
+        .expect("Failed to connect to Postgres");
 
     let query = format!(r#"CREATE DATABASE "{}";"#, config.database_name);
     sqlx::query(AssertSqlSafe(query.as_str()))
@@ -126,7 +125,7 @@ pub async fn configure_database(config: &DatabaseSettings) -> PgPool {
         .expect("Failed to create database.");
 
     // Migrate database
-    let connection_pool = PgPool::connect(config.connection_string().expose_secret())
+    let connection_pool = PgPool::connect_with(config.connect_options())
         .await
         .expect("Failed to connect to Postgres.");
     sqlx::migrate!("./migrations")

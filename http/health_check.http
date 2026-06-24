@@ -1,0 +1,10 @@
+### 健康检查接口
+GET http://127.0.0.1:8000/health_check
+
+
+### 订阅接口
+POST http://127.0.0.1:8000/subscriptions
+Content-Type: application/x-www-form-urlencoded
+
+name = le%20guin &
+email = ursula_le_guin%40gmail.com

@@ -30,6 +30,7 @@ then
 	  --health-timeout=5s \
 	  --health-retries=5 \
 	  --publish "${DB_PORT}":5432 \
+    --network zero2prod-net \
 	  --detach \
 	  --name "${CONTAINER_NAME}" \
 	  postgres -N 1000
